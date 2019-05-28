@@ -1,0 +1,238 @@
+﻿<!--
+Name: Adrian Kriz
+-->
+
+<html>
+	<head>
+        
+        <!--Bootstrap CSS-->
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+        <!--jQuery-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js" ></script>
+        <!--Bootstrap JS-->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+		<title>WAR</title>
+        <style>
+            .winner{
+                color: green;
+            }
+            
+            .loser{
+                color: red;
+            }
+            
+            .tie{
+                color: gold;
+            }
+        </style>
+    </head>
+
+	<body>
+        <div class="container">
+            <div class="jumbotron">
+                <h1 class="text-center">WAR</h1>
+                <hr>
+                <div class="row">
+                    <div class="col-sm-5">
+                        <div id="player1" class="well well-lg" style="background-color: #444444;"></div>
+                    </div>
+                    
+                    <div class="col-sm-2" style="position: relative">
+                        <button id="btnDraw" class="btn btn-primary btn-lg center-block" style="position: ; bottom: 0;">DRAW!</button>
+                        <h2 class="text-center" id="lblScore">0/0</h2>
+                    </div>
+
+                    <div class="col-sm-5">
+                        <div id="player2" class="well well-lg" style="background-color: #444444;"></div>
+                    </div>
+                </div><!--/row-->              
+            </div><!--/jumbotron-->
+        </div><!--/container-->
+	</body>
+
+	<script>
+        
+        // Rules:
+		// Can't touch the above html file
+		// All content must be added programatically
+		
+        $(document).ready(function() {
+    		// grab p1 and p2 divs
+			var player1Div = $("div#player1"); // pointer to p1's div
+			var player2Div = $("div#player2"); // pointer to p2's div
+			
+			// simple json for face cards
+			var faceCards = { "ACE": 14, "KING": 13, "QUEEN": 12, "JACK": 11};
+			
+			var thisDeckId = ""; // the id for this deck
+			var deckRemainder = 0; // cards left in current deck
+			var p1Wins = 0; // wins for player 1
+			var p2Wins = 0; // wins for player 2
+			var warTies = 0; // tracks total ties (unused in final display)
+			var displayTies = false; // toggle to enable tie display
+			
+			// places a reset button into the 'game'
+			function insertResetButton()
+			{
+				var resetButton = $("<button/>", {text: "RESET", "class": "btn btn-primary btn-lg center-block", "style": "position: ; bottom: 0;"}); // create our objec with jQuery
+				resetButton.click(function(){
+					resetGame(); // onclick to call our reset
+				});
+				$("div.col-sm-2").append(resetButton); // add our button
+			};
+			
+			// resets the game state
+			function resetGame()
+			{
+				p1Wins = 0;
+				p2Wins = 0;
+				warTies = 0;
+				player1Div.empty();
+				player2Div.empty();
+				updateWinDisplay(0,0, 0);
+				thisDeckId="";
+			};
+			
+			// update our scoreboard
+			function updateWinDisplay(p1, p2, ties){
+				var outString = displayTies ? p1 + "/" + ties + "/" + p2 : p1 + "/" + p2; // ternary to remove if block
+				document.querySelector('#lblScore').innerHTML = outString;
+			};
+			
+			// get a deck from api website, it comes shuffled
+			function shuffleDeck(){
+				targetUrl = "https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1";
+				var flag = false;
+				$.ajax({
+					type: "GET",
+					url: targetUrl,
+					dataType: 'json',
+					success: function(response){
+						thisDeckId = response["deck_id"];
+						// if the api returns that we got our deck
+						if(response["success"]){
+							drawCard(thisDeckId);
+						}
+					},
+					failure: function(errMsg) {
+						// if something went wrong getting a deck
+						alert(errMsg);
+						return false;
+					}
+				});
+			}
+			
+			// draw a card based on a deck id for the api website
+			function drawCard(deck_id){
+				var targetUrl = "https://deckofcardsapi.com/api/deck/" + deck_id + "/draw/?count=2"; // formatted api string
+				$.ajax({
+					type: "GET",
+					url: targetUrl,
+					dataType: 'json',
+					success: function(response){parseCards(response);},
+					failure: function(errMsg) {
+						alert(errMsg);
+					}
+				});
+			};
+			
+			// get the data from our api and put it into custom classes
+			function parseCards(cardsJson)
+			{
+				deckRemainder = cardsJson["remaining"]; // get the remainder of the deck from the api response
+				var p1Card = new card(cardsJson["cards"][0]["value"], cardsJson["cards"][0]["suit"]);
+				var p2Card = new card(cardsJson["cards"][1]["value"], cardsJson["cards"][1]["suit"]);
+				doWAR(p1Card, p2Card); // proceed to the 'game'
+			};
+			
+			// function to handle the game, determining the victor of the round
+			// also handles the ending of the game
+			function doWAR(card1, card2){
+				p1classString = ""; // handles the class (winner/loser/tie) for p1
+				p2classString = ""; // see above but for p2
+				p1Val = card1.numericvalue(); // get the numeric value for p1's card
+				p2Val = card2.numericvalue(); // see above but for p2
+				// start with a tie case
+				if(p1Val == p2Val)
+				{p1classString = "tie";p2classString = "tie";warTies++;}
+				// check for greater (p1 focus)
+				else if(p1Val > p2Val)
+				{p1classString = "winner";p2classString = "loser";p1Wins++;}
+				// otherwise
+				else
+				{p1classString = "loser";p2classString = "winner";p2Wins++;};
+				// update display divs with card's toString with the relevant class (winner/loser/tie)
+				// jQuery format: ($(<tag/>, {text: cardX.toString, "class": pXclassString})
+				player1Div.append($("<h6/>", {text: card1.toString(), "class": p1classString}));
+				player2Div.append($("<h6/>", {text: card2.toString(), "class": p2classString}));
+				// update our scoreboard
+				updateWinDisplay(p1Wins, p2Wins, warTies);
+				// if we ran out of cards
+				if(deckRemainder==0)
+				{
+					// create a base message, add context specific data later
+					var alertBase = "Game over!\n";
+					// check tie case
+					if(p1Wins == p2Wins)
+					{
+						alertBase += "This game is a draw!";
+					}
+					// determine winner
+					else
+					{
+						var winnerString = "";
+						if(p1Wins > p2Wins){winnerString="1"}
+						else{winnerString="2"}
+						alertBase += "Player " + winnerString + " wins!";
+					}
+					// if we don't add a delay then the scoreboard finalizes the values AFTER the gameover appears
+					// which looks tacky so this is sort of a fix
+					setTimeout(function(){alert(alertBase);},200);
+				};
+			};
+			
+			// small custom class to hold needed card data (just the value and suit for this game)
+			function card(value, suit){
+				this.value = value;
+				this.numericvalue = function() {
+					var tempval = 0;
+					if(this.value in faceCards)
+					{tempval = faceCards[this.value]}
+					else
+					{tempval = parseInt(this.value)};
+					console.log(tempval);
+					return tempval;
+				};
+				this.suit = suit;
+				// override the default string
+				this.toString = function() {
+					return value + " of " + suit;
+				};
+			};
+			
+			// functions end here, begin code to execute first
+			
+			// function for the draw button being clicked
+			$("#btnDraw").click(function() {
+				// if we have no deck from the api yet, call shuffleDeck which will get a shuffled deck
+				if(thisDeckId == ""){
+					shuffleDeck();
+				}
+				// if we have a deck
+				else
+				{
+					// and there's more than 2 cards (enough for another round of WAR)
+					if(deckRemainder >= 2){
+						drawCard(thisDeckId);
+					};
+					// otherwise do nothing because the user needs to reset
+				};
+			});
+			// insert our custom reset button
+			insertResetButton();
+			// set the game to the default unplayed state
+			resetGame();
+		});
+	</script>
+
+</html>
