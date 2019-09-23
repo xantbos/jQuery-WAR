@@ -1,4 +1,4 @@
-# jQuery To-Do List
+# jQuery WAR
 
 Simple game of WAR made in jQuery. 
 
